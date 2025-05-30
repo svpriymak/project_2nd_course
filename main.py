@@ -2,8 +2,10 @@ import pandas as pd
 import glob
 import os
 
-##впиши свой путь до датасета
-folder_path = '/Users/svpriymak/Downloads/ozon'
+# choose your character
+# folder_path = '/Users/svpriymak/Downloads/ozon' # svpriymak
+folder_path = "/home/user/ozon_dataset/ozon" # ysmoshchenkov
+
 
 csv_files = glob.glob(os.path.join(folder_path, '*.csv'))
 
