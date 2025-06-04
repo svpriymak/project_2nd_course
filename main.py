@@ -11,8 +11,8 @@ from scipy.stats import pearsonr, kendalltau, stats
 
 warnings.filterwarnings("ignore")
 sns.set_style("whitegrid")
-# plt.rcParams['font.family'] = 'DejaVu Sans'
-# plt.rcParams['font.size'] = 12
+plt.rcParams['font.family'] = 'DejaVu Sans'
+plt.rcParams['font.size'] = 12
 
 # 1. Загрузка --------------------------------------------------------------
 # Указываем путь к папке с CSV-файлами
@@ -25,7 +25,6 @@ print(f"Найдено {len(csv_files)} CSV файлов.")
 # Считываем и объединяем все файлы в один DataFrame
 data_list = []
 for file in csv_files:
-    # Читаем CSV, учитывая, что числовые поля могут быть в кавычках.
     try:
         df = pd.read_csv(file, sep=',', quotechar='"', encoding='utf-8', low_memory=False)
     except Exception as e:
@@ -40,10 +39,8 @@ goods_num = data.shape[0]
 
 # Добавляем в таблицу поле main_category
 def extract_main_category(full_category, source_file):
-    # Попытка извлечь основную категорию из full_category
     if isinstance(full_category, str) and '/' in full_category:
         raw = full_category.split('/')[0]
-        # Если дублируется, например "ЭлектроникаЭлектроника", сократим до одного слова
         half = len(raw) // 2
         if len(raw) % 2 == 0 and raw[:half] == raw[half:]:
             return raw[:half]
@@ -156,7 +153,6 @@ plt.yscale('log')
 save_fig("price_vs_comments.png")
 
 # Расчет корреляции
-# вариант 1
 print("\nКорреляции Пирсона (log10 цены):")
 valid = data[(data["Price"] > 0) & data["Comments"].notna()]
 
@@ -170,12 +166,6 @@ if len(valid) >= 2:
     print(f"Рейтинг — Отзывы: r={r_rc:.3f}, p={p_rc:.2e}")
 else:
     print("Недостаточно данных для корреляций.")
-
-# вариант 2
-price_log = np.log10(data['Price'].dropna() + 1)
-comments_log = np.log10(data['Comments'].dropna() + 1)
-corr, p_value = pearsonr(price_log, comments_log)
-print(f"Корреляция (лог-преобразование): {corr:.3f}, p-value: {p_value:.4f}")
 
 # Гипотеза 2: Цена vs Рейтинг
 plt.figure(figsize=(10, 6))
@@ -221,7 +211,6 @@ if 'Sales' in data.columns:
 
 # 8. Анализ рейтингов и отзывов -----------------------------------------------
 # Гипотеза 1: Категории с лучшими рейтингами
-# вариант 1
 top_categories = data['main_category'].value_counts().nlargest(15).index
 filtered_data = data[data['main_category'].isin(top_categories)]
 
@@ -240,7 +229,28 @@ plt.ylabel("Категория", fontsize=12)
 plt.xlim(3, 5.2)
 save_fig("category_rating_distribution.png")
 
-# вариант 2
+# Распределение цен по категориям
+plt.figure(figsize=(12, 8))
+sns.boxplot(
+    data=filtered_data,
+    x='Price',
+    y='main_category',
+    palette='RdYlGn',
+    showfliers=False,
+    orient='h',
+    width=0.7
+)
+plt.xscale('log')
+plt.title("Распределение цен по основным категориям", fontsize=16)
+plt.xlabel("Цена, руб (лог. шкала)", fontsize=12)
+plt.ylabel("Категория", fontsize=12)
+plt.grid(True, axis='x', linestyle='--', alpha=0.6)
+plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:,.0f}'))
+plt.yticks(fontsize=10)
+plt.tight_layout()
+save_fig("category_price_distribution.png")
+
+# сsv файл со средним рейтингом, средним кол-вом отзывов и общим кол-вом товаров в категории
 top_cats = data["main_category"].value_counts().nlargest(10).index
 data["main_cat_top"] = data["main_category"].where(
     data["main_category"].isin(top_cats), "Other"
@@ -256,7 +266,6 @@ cat_stats = (
     .sort_values("mean_rating", ascending=False)
 )
 cat_stats.to_csv(f"{res_dir}/category_stats.csv")
-
 
 # Гипотеза 2: Отзывы vs Рейтинг
 plt.figure(figsize=(10, 6))
@@ -288,7 +297,6 @@ plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f'{x:,.0f}
 save_fig("price_distribution.png")
 
 # Корреляционная матрица
-# вариант 1
 corr_matrix = data[['Price', 'Rating', 'Comments', 'Sales', 'Balance']].corr(method='spearman')
 plt.figure(figsize=(10, 8))
 sns.heatmap(
@@ -302,26 +310,13 @@ sns.heatmap(
 plt.title("Корреляционная матрица (Спирмен)", fontsize=14)
 save_fig("correlation_matrix.png")
 
-# вариант 2
-plt.figure(figsize=(7, 4))
-sns.violinplot(
-    data=data, x="price_segment", y="Rating", inner="quartile", palette="Set3", cut=0
-)
-plt.ylim(0, 5.2)
-plt.title("Рейтинг по сегментам цены")
-save_fig("violin_rating_segment.png")
-
-corr = data[["Price", "Rating", "Comments"]].corr(method="spearman")
-plt.figure(figsize=(4, 3))
-sns.heatmap(corr, annot=True, fmt=".2f", cmap="RdBu_r", center=0)
-plt.title("Spearman-корреляции")
-save_fig("heatmap_spearman.png")
-
 # Комбинированный график
 fig, ax1 = plt.subplots(figsize=(10, 4))
 sns.barplot(ax=ax1, x=cat_stats.index, y=cat_stats["mean_rating"], palette="Blues_d")
 ax1.set_ylim(0, 5)
 ax1.set_ylabel("Средний рейтинг")
+ax1.set_ylabel("Основные категории")
+plt.xticks(fontsize=10)
 
 ax2 = ax1.twinx()
 ax2.plot(
@@ -335,22 +330,13 @@ ax2.set_ylabel("Средние отзывы", color="darkred")
 ax2.tick_params(axis="y", labelcolor="darkred")
 
 plt.xticks(rotation=20, ha="right")
-plt.title("TOP-категории: рейтинг и отзывы")
+plt.title("ТОП-категории: рейтинг и отзывы")
 save_fig("combo_rating_reviews_category.png")
 
-# Box распределения цен по TOP-категориям
-plt.figure(figsize=(10, 4))
-sns.boxplot(data=data[data["main_cat_top"] != "Other"], x="main_cat_top", y="Price")
-plt.yscale("log")
-plt.ylabel("Цена (лог)")
-plt.xticks(rotation=20, ha="right")
-plt.title("Распределение цен в TOP-категориях")
-save_fig("box_price_top_categories.png")
-
 # 10. Сохранение результатов --------------------------------------------------
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("РЕЗУЛЬТАТЫ АНАЛИЗА E-COMMERCE ДАННЫХ")
-print("="*50 + "\n")
+print("=" * 50 + "\n")
 
 # Основные метрики
 print(f"Общее количество товаров: {goods_num}")
@@ -360,7 +346,7 @@ print(f"Медианная цена: {data['Price'].median():.2f} руб\n")
 
 # Ключевые зависимости
 print("ОСНОВНЫЕ ЗАВИСИМОСТИ:")
-print(f"1. Корреляция цена/отзывы: {pearsonr(np.log10(data['Price']+1), np.log10(data['Comments']+1))[0]:.3f}")
+print(f"1. Корреляция цена/отзывы: {pearsonr(np.log10(data['Price'] + 1), np.log10(data['Comments'] + 1))[0]:.3f}")
 print(f"2. Корреляция цена/рейтинг: {kendalltau(data['Price'], data['Rating'])[0]:.3f}\n")
 
 # Топ категории
