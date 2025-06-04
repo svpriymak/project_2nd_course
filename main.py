@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import glob
 import warnings
@@ -14,9 +13,9 @@ sns.set_style("whitegrid")
 plt.rcParams['font.family'] = 'DejaVu Sans'
 plt.rcParams['font.size'] = 12
 
-# 1. Загрузка --------------------------------------------------------------
-# Указываем путь к папке с CSV-файлами
+# Указываем путь к папке с ozon
 # choose your character
+# data_path = "..." ваш путь здесь
 # data_path = '/Users/svpriymak/Downloads/ozon' # svpriymak
 data_path = "/home/user/ozon_dataset/ozon"  # ysmoshchenkov
 csv_files = glob.glob(os.path.join(data_path, "*.csv"))
@@ -37,7 +36,7 @@ print("Всего строк:", data.shape[0])
 goods_num = data.shape[0]
 
 
-# Добавляем в таблицу поле main_category
+# Добавляем в таблицу столбец main_category
 def extract_main_category(full_category, source_file):
     if isinstance(full_category, str) and '/' in full_category:
         raw = full_category.split('/')[0]
@@ -58,7 +57,7 @@ data['main_category'] = data.apply(lambda row: extract_main_category(
 
 print("Объединенный DataFrame имеет размер:", data.shape)
 
-# 3. Числа -----------------------------------------------------------------
+# Приводим все числовые поля к правильному формату
 numeric = ['Balance', 'Comments', 'Rating', 'Price']
 
 
@@ -75,39 +74,22 @@ def to_float(s):
 for c in numeric:
     if c in data.columns: data[c] = to_float(data[c])
 
-# 4. Базовая чистка --------------------------------------------------------
-# Некоторые поля предполагаются числовыми, но могут быть прочитаны как строки.
-numeric_cols = ['Balance', 'Comments', 'Rating', 'Price', 'Max price', 'Min price',
-                'Average price', 'Sales', 'Revenue', 'Revenue potential', 'Lost profit',
-                'Days in stock', 'Days with sales', 'Average if in stock']
-for col in numeric_cols:
-    if col in data.columns:
-        # Удаляем кавычки и лишние символы и приводим к числу
-        data[col] = data[col].astype(str).str.replace('"', '').str.replace(',', '')
-        data[col] = pd.to_numeric(data[col], errors='coerce')
-
-# Удалим ненужные или пустые столбцы
+# Удаляем ненужные или пустые столбцы, а также дубликаты полей
 if 'Unnamed: 22' in data.columns:
     data = data.drop(columns=['Unnamed: 22'])
-# Убираем дубликаты по ключевым полям, например SKU и URL
 data.drop_duplicates(subset=['SKU', 'URL'], inplace=True)
 data.reset_index(drop=True, inplace=True)
 
-# Обработка пропусков (NaN):
-# Удаляем строки, в которых нет значимой информации для анализа.
-data.dropna(subset=['Price', 'Comments', 'Rating', 'Sales', 'Balance'], inplace=True)
-data.reset_index(drop=True, inplace=True)
-print("Размер DataFrame после очистки NaN и дубликатов:", data.shape)
+# data.dropna(subset=['Price', 'Comments', 'Rating', 'Sales', 'Balance'], inplace=True)
+# data.reset_index(drop=True, inplace=True)
 
-# Обработка выбросов:
-# отбрасываем 1% самых дорогих товаров (для устойчивости анализа), а также товары без оценок
+# Обработка выбросов и фильтрация:
 price_threshold = data['Price'].quantile(0.99)
 data = data[data['Price'] <= price_threshold]
 data = data[data['Rating'] > 0]
 
-print("Размер DataFrame после удаления ценовых выбросов и нулевых рейтингов:", data.shape)
+print("Размер DataFrame после всех фильтраций:", data.shape)
 
-# 5. Создание сегментов -------------------------------------------------------
 # Сегменты по цене
 if data['Price'].nunique() >= 4:
     data['price_segment'] = pd.qcut(
@@ -122,7 +104,7 @@ else:
         labels=['Дешёвые', 'Средние', 'Дорогие']
     )
 
-# 6. Подготовка папки для результатов -----------------------------------------
+# Хранение результатов
 res_dir = "./results"
 os.makedirs(res_dir, exist_ok=True)
 
@@ -134,11 +116,11 @@ def save_fig(name, dpi=150):
     print(f"Сохранен: {name}")
 
 
-# 7. Анализ связи цены и характеристик ----------------------------------------
+# Анализ связи цены и характеристик
 # Гипотеза 1: Цена vs Отзывы
 plt.figure(figsize=(10, 6))
 sns.regplot(
-    data=data.sample(5000, random_state=42),  # Сэмплирование для больших данных
+    data=data.sample(5000, random_state=42),
     x='Price',
     y='Comments',
     scatter_kws={'alpha': 0.3, 'color': 'steelblue'},
@@ -153,9 +135,8 @@ plt.yscale('log')
 save_fig("price_vs_comments.png")
 
 # Расчет корреляции
-print("\nКорреляции Пирсона (log10 цены):")
+print("Корреляции Пирсона (log10 цены):")
 valid = data[(data["Price"] > 0) & data["Comments"].notna()]
-
 if len(valid) >= 2:
     r_pr, p_pr = pearsonr(np.log10(valid["Price"]), valid["Rating"])
     r_pc, p_pc = pearsonr(np.log10(valid["Price"]), valid["Comments"])
@@ -163,7 +144,7 @@ if len(valid) >= 2:
 
     print(f"Цена — Рейтинг : r={r_pr:.3f}, p={p_pr:.2e}")
     print(f"Цена — Отзывы  : r={r_pc:.3f}, p={p_pc:.2e}")
-    print(f"Рейтинг — Отзывы: r={r_rc:.3f}, p={p_rc:.2e}")
+    print(f"Рейтинг — Отзывы: r={r_rc:.3f}, p={p_rc:.2e}\n")
 else:
     print("Недостаточно данных для корреляций.")
 
@@ -185,7 +166,11 @@ save_fig("price_segment_vs_rating.png")
 # Статистическая значимость
 segments = data.groupby('price_segment')['Rating'].apply(list)
 f_val, p_val = stats.f_oneway(*segments.values)
-print(f"ANOVA: F-value={f_val:.2f}, p-value={p_val:.4f}")
+if p_val < 1e-323:
+    p_display = "p < 1e-323 (практически 0)"
+else:
+    p_display = f"p = {p_val:.4e}"
+print(f"Дисперсионный анализ (ANOVA): F-value={f_val:.2f}, {p_display}\n")
 
 # Гипотеза 3: Цена vs Продажи
 if 'Sales' in data.columns:
@@ -207,10 +192,14 @@ if 'Sales' in data.columns:
 
     # Корреляция Кендалла (устойчива к выбросам)
     kendall_corr, k_pvalue = kendalltau(data['Price'], data['Sales'], nan_policy='omit')
-    print(f"Корреляция Кендалла (Цена-Продажи): {kendall_corr:.3f}, p-value: {k_pvalue:.4f}")
+    if k_pvalue < 0.0001:
+        p_value_str = "< 0.0001"
+    else:
+        p_value_str = f"{k_pvalue:.4f}"
+    print(f"Корреляция Кендалла (Цена-Продажи): {kendall_corr:.3f}, p-value: {p_value_str}\n")
 
-# 8. Анализ рейтингов и отзывов -----------------------------------------------
-# Гипотеза 1: Категории с лучшими рейтингами
+# Анализ рейтингов и отзывов
+# Категории с лучшими рейтингами
 top_categories = data['main_category'].value_counts().nlargest(15).index
 filtered_data = data[data['main_category'].isin(top_categories)]
 
@@ -267,7 +256,7 @@ cat_stats = (
 )
 cat_stats.to_csv(f"{res_dir}/category_stats.csv")
 
-# Гипотеза 2: Отзывы vs Рейтинг
+# Гипотеза 4: Отзывы vs Рейтинг
 plt.figure(figsize=(10, 6))
 sns.regplot(
     data=data[data['Comments'] > 0].sample(5000, random_state=42),
@@ -285,18 +274,17 @@ plt.xscale('log')
 plt.ylim(3, 5.2)
 save_fig("reviews_vs_rating.png")
 
-# 9. Дополнительные анализы ---------------------------------------------------
 # Распределение цен
 plt.figure(figsize=(10, 6))
 sns.histplot(data['Price'], bins=50, kde=True, color='royalblue')
 plt.title("Распределение цен на товары", fontsize=14)
-plt.xlabel("Цена (руб)", fontsize=12)
+plt.xlabel("Цена (руб.)", fontsize=12)
 plt.ylabel("Количество товаров", fontsize=12)
 plt.xscale('log')
 plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f'{x:,.0f}'))
 save_fig("price_distribution.png")
 
-# Корреляционная матрица
+# Матрица корреляции Спирмена по 5 параметрам
 corr_matrix = data[['Price', 'Rating', 'Comments', 'Sales', 'Balance']].corr(method='spearman')
 plt.figure(figsize=(10, 8))
 sns.heatmap(
@@ -311,12 +299,12 @@ plt.title("Корреляционная матрица (Спирмен)", fontsi
 save_fig("correlation_matrix.png")
 
 # Комбинированный график
-fig, ax1 = plt.subplots(figsize=(10, 4))
+fig, ax1 = plt.subplots(figsize=(12, 5))
 sns.barplot(ax=ax1, x=cat_stats.index, y=cat_stats["mean_rating"], palette="Blues_d")
 ax1.set_ylim(0, 5)
 ax1.set_ylabel("Средний рейтинг")
-ax1.set_ylabel("Основные категории")
-plt.xticks(fontsize=10)
+ax1.set_xlabel("Основные категории")
+plt.xticks(rotation=45, ha="right", fontsize=9)
 
 ax2 = ax1.twinx()
 ax2.plot(
@@ -329,34 +317,27 @@ ax2.plot(
 ax2.set_ylabel("Средние отзывы", color="darkred")
 ax2.tick_params(axis="y", labelcolor="darkred")
 
-plt.xticks(rotation=20, ha="right")
 plt.title("ТОП-категории: рейтинг и отзывы")
-save_fig("combo_rating_reviews_category.png")
+plt.tight_layout()
+save_fig("top_cats_rating_and_reviews.png")
 
-# 10. Сохранение результатов --------------------------------------------------
+# Результаты
 print("\n" + "=" * 50)
-print("РЕЗУЛЬТАТЫ АНАЛИЗА E-COMMERCE ДАННЫХ")
+print("РЕЗУЛЬТАТЫ АНАЛИЗА E-COMMERCE ДАННЫХ НА ДАТАСЕТЕ OZON")
 print("=" * 50 + "\n")
 
-# Основные метрики
 print(f"Общее количество товаров: {goods_num}")
 print(f"Количество категорий: {data['main_category'].nunique()}")
 print(f"Средний рейтинг: {data['Rating'].mean():.2f}")
+print(f"Медиана рейтинга: {valid['Rating'].median():.2f}")
+print(f"Медиана отзывов: {valid['Comments'].median():.1f}")
 print(f"Медианная цена: {data['Price'].median():.2f} руб\n")
 
-# Ключевые зависимости
-print("ОСНОВНЫЕ ЗАВИСИМОСТИ:")
+print("Основные зависимости:")
 print(f"1. Корреляция цена/отзывы: {pearsonr(np.log10(data['Price'] + 1), np.log10(data['Comments'] + 1))[0]:.3f}")
-print(f"2. Корреляция цена/рейтинг: {kendalltau(data['Price'], data['Rating'])[0]:.3f}\n")
+print(f"2. Корреляция цена/рейтинг: {kendalltau(data['Price'], data['Rating'])[0]:.3f}")
 
-# Топ категории
-top_cats = data['main_category'].value_counts().nlargest(5)
-print("ТОП-5 КАТЕГОРИЙ ПО КОЛИЧЕСТВУ ТОВАРОВ:")
-for cat, count in top_cats.items():
-    print(f"- {cat}: {count} товаров")
-
-# Практические выводы
-print("\nВЫВОДЫ И РЕКОМЕНДАЦИИ:")
+print("\nВыводы:")
 print("- Товары масс-маркет получают больше отзывов")
 print("- Премиум сегмент имеет более высокие рейтинги")
 print("- Оптимальный ценовой диапазон: 1-5 тыс. руб")
