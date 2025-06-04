@@ -305,7 +305,7 @@ save_fig("correlation_matrix.png")
 # вариант 2
 plt.figure(figsize=(7, 4))
 sns.violinplot(
-    data=data, x="Ценовой сегмент", y="Рейтинг", inner="quartile", palette="Set3", cut=0
+    data=data, x="price_segment", y="Rating", inner="quartile", palette="Set3", cut=0
 )
 plt.ylim(0, 5.2)
 plt.title("Рейтинг по сегментам цены")
@@ -335,16 +335,16 @@ ax2.set_ylabel("Средние отзывы", color="darkred")
 ax2.tick_params(axis="y", labelcolor="darkred")
 
 plt.xticks(rotation=20, ha="right")
-plt.title("ТОП-категории: рейтинг и отзывы")
+plt.title("TOP-категории: рейтинг и отзывы")
 save_fig("combo_rating_reviews_category.png")
 
 # Box распределения цен по TOP-категориям
 plt.figure(figsize=(10, 4))
-sns.boxplot(data=data[data["main_cat_top"] != "Other"], x="ТОП-категории", y="Цена")
+sns.boxplot(data=data[data["main_cat_top"] != "Other"], x="main_cat_top", y="Price")
 plt.yscale("log")
 plt.ylabel("Цена (лог)")
 plt.xticks(rotation=20, ha="right")
-plt.title("Распределение цен в ТОП-категориях")
+plt.title("Распределение цен в TOP-категориях")
 save_fig("box_price_top_categories.png")
 
 # 10. Сохранение результатов --------------------------------------------------
