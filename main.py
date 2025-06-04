@@ -15,7 +15,7 @@ plt.rcParams['font.size'] = 12
 
 # Указываем путь к папке с ozon
 # choose your character
-# data_path = "..." ваш путь здесь
+# data_path = "..." # ваш путь здесь
 # data_path = '/Users/svpriymak/Downloads/ozon' # svpriymak
 data_path = "/home/user/ozon_dataset/ozon"  # ysmoshchenkov
 csv_files = glob.glob(os.path.join(data_path, "*.csv"))
@@ -298,7 +298,7 @@ sns.heatmap(
 plt.title("Корреляционная матрица (Спирмен)", fontsize=14)
 save_fig("correlation_matrix.png")
 
-# Комбинированный график
+# Гипотеза 5
 fig, ax1 = plt.subplots(figsize=(12, 5))
 sns.barplot(ax=ax1, x=cat_stats.index, y=cat_stats["mean_rating"], palette="Blues_d")
 ax1.set_ylim(0, 5)
@@ -330,8 +330,10 @@ print(f"Общее количество товаров: {goods_num}")
 print(f"Количество категорий: {data['main_category'].nunique()}")
 print(f"Средний рейтинг: {data['Rating'].mean():.2f}")
 print(f"Медиана рейтинга: {valid['Rating'].median():.2f}")
-print(f"Медиана отзывов: {valid['Comments'].median():.1f}")
-print(f"Медианная цена: {data['Price'].median():.2f} руб\n")
+print(f"Среднее отзывов: {valid['Comments'].mean():.2f}")
+print(f"Медиана отзывов: {valid['Comments'].median():.2f}")
+print(f"Средняя цена: {data['Price'].mean():.2f} руб")
+print(f"Медиана цены: {data['Price'].median():.2f} руб\n")
 
 print("Основные зависимости:")
 print(f"1. Корреляция цена/отзывы: {pearsonr(np.log10(data['Price'] + 1), np.log10(data['Comments'] + 1))[0]:.3f}")
